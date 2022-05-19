@@ -88,8 +88,8 @@ export class ThreeViewer extends HTMLElement {
             renderer: this.renderer,
             scene: this.scene,
             camera: this.camera,
-            width: 512,
-            height: 512,
+            width: 256,
+            height: 256,
             groundReflector: null,
             selects: null
         });
