@@ -81,3 +81,13 @@ input[type="checkbox"]:checked:after{
     right: 0;
 }
 
+@media only screen and (max-width: 600px) {
+    #panel {
+        transform: scale(.75);
+        transform-origin: 0 100%;
+        opacity: 1;
+        top: unset;
+        right: 0;
+    }
+  }
+

@@ -1,6 +1,8 @@
 {
   "tasks": {
-    "dev": "deno run --watch --allow-all main.ts"
+    "start": "deno run --allow-all main.ts",
+    "dev": "deno run --watch --allow-all main.ts --watch",
+    "dist": "rm -rf dist && deno compile --allow-all -o dist/server.exe main.ts && cp -r client dist/."
   },
   "compilerOptions": {
     "lib": [

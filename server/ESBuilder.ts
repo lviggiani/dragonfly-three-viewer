@@ -2,7 +2,6 @@ import * as esbuild from "https://deno.land/x/esbuild@v0.17.8/mod.js";
 import { resolve, join, basename } from "https://deno.land/std@0.176.0/path/mod.ts";
 
 export type ESBuilderSettings = esbuild.BuildOptions & {
-    enabled?: boolean;
     module?: boolean;
     imports?: Record<string, string>;
     staticFiles?: Record<string, string>;
@@ -45,7 +44,6 @@ export class ESBuilder {
 
         this.settings.plugins = [sourceMapPlugin, copyStaticFilesPlugin];
 
-        delete this.settings.enabled;
         delete this.settings.module;
         delete this.settings.imports;
         delete this.settings.staticFiles;

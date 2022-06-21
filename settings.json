@@ -1,6 +1,5 @@
 {
     "WebServer": {
-        "enabled": true,
         "port": 8080,
         "dirs": {
             "default": "./client",
@@ -8,7 +7,6 @@
         }
     },
     "ESBuilder": {
-        "enabled": true,
         "entryPoints": ["src/app.ts"],
         "outdir": "client/js/dist/",
         "banner": {

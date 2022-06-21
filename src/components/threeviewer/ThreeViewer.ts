@@ -37,6 +37,7 @@ export type ThreeViewSceneInfo = {
 }
 
 //const WEBGL2 = !!WebGL2RenderingContext;
+const isMobile = window.matchMedia("(pointer:coarse)").matches;
 
 export class ThreeViewer extends HTMLElement {
 
@@ -105,8 +106,20 @@ export class ThreeViewer extends HTMLElement {
 
         this.root.appendChild(this.renderer.domElement);
 
+        let ssrEnabled = false;
+
         this.userControls = new OrbitControls(this.camera, this.renderer.domElement);
         this.userControls.addEventListener("change", () => this.requestRender());
+        if (isMobile) this.userControls.addEventListener("start", () => {
+            ssrEnabled = ssrPass.enabled;
+            ssrPass.enabled = false
+        });
+
+        if (isMobile) this.userControls.addEventListener("end", () => {
+            ssrPass.enabled = ssrEnabled;
+            this.requestRender();
+        });
+
         this.userControls.maxPolarAngle = Math.PI / 2;
         this.userControls.enabled = true;
         
