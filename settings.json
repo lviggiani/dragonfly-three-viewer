@@ -1,0 +1,21 @@
+{
+    "WebServer": {
+        "enabled": true,
+        "port": 8080,
+        "dirs": {
+            "default": "./client",
+            "/proto": "./proto"
+        }
+    },
+    "ESBuilder": {
+        "enabled": true,
+        "entryPoints": ["src/app.ts"],
+        "outfile": "client/js/dist/app-min.js",
+        "banner": {
+            "js": "// deno-lint-ignore-file"
+        },
+        "bundle": true,
+        "minify": false,
+        "module": true
+    }
+}

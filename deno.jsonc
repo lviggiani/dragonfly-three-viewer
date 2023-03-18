@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "dev": "deno run --watch --allow-all main.ts"
+  },
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable",
+      "deno.ns",
+      "deno.unstable"
+    ]
+  }
+}
