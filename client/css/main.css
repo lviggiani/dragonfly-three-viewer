@@ -4,7 +4,7 @@ body, html {
     font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
 }
 
-txt-three-viewer {
+df-three-viewer {
     width: 100%; 
     height: 100%;
     background-color: #323232;
@@ -13,7 +13,7 @@ txt-three-viewer {
 #panel {
     position: absolute;
     top: 5px;
-    left: 5px;
+    left: 0px;
     bottom: 5px;
     padding: 10px;
     border-radius: 10px;
@@ -21,7 +21,6 @@ txt-three-viewer {
     background-color: #0000007f;
     opacity: .2;
     transition: all .35s ease-out;
-    transition-delay: .35s;
     transform: translate(-95%);
     display: flex;
     flex-direction: column;

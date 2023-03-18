@@ -4,7 +4,7 @@ export { BUILD_NUMBER } from "./build_number.ts";
 export { ThreeViewer, ThreeViewerEvent } from "./components/threeviewer/ThreeViewer.ts";
 
 addEventListener("load", () => {
-    const viewer = document.querySelector("txt-three-viewer") as ThreeViewer;
+    const viewer = document.querySelector("df-three-viewer") as ThreeViewer;
     const envSel = document.querySelector("#envmap") as HTMLInputElement;
     envSel.value = viewer.envsrc.match(/([^\/]+)\./)![1];
     envSel.addEventListener("change", () => viewer.envsrc = `envmaps/${envSel.value}.exr`);
@@ -15,6 +15,6 @@ addEventListener("load", () => {
 
     viewer.addEventListener(ThreeViewerEvent.load, _ => {
         const info = viewer.info;
-        document.querySelector("#info")!.textContent = `geometries: ${info.geometries} | textures: ${info.textures} | triangles: ${info.triangles.toLocaleString()}`;
+        document.querySelector("#info")!.textContent = `geometries: ${info.geometries} | textures: ${info.textures} | polygons: ${info.triangles.toLocaleString()}`;
     });
 });

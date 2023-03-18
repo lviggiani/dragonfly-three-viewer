@@ -1,30 +1,28 @@
 // deno-lint-ignore-file no-explicit-any
-/* Author: Luca Viggiani <luca.viggiani@txtgroup.com>
-   Credits: https://github.com/lviggiani/dragonfly-toolkit/
+/* Author: Luca Viggiani <lviggiani@gmail.com>
+   Credits: https://github.com/lviggiani/dragonfly-threeviewer/
 */
+import { PREFIX } from "../Globals.ts";
 
 import * as THREE from "three";
-import * as Params from "./Params.ts";
+import * as constants from "./constants.ts";
 
 import { EffectComposer } from "three/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/postprocessing/UnrealBloomPass.js";
-import { RGBELoader } from "three/loaders/RGBELoader.js";
-import { EXRLoader } from "three/loaders/EXRLoader.js";
 import { FXAAShader } from 'three/shaders/FXAAShader.js';
 
 import { OrbitControls } from "three/controls/OrbitControls.js";
 
 import MimeType from "../../vendor/MimeType.js";
 
-const EnvLoaders = new Map<string, typeof THREE.DataTextureLoader>([
-    ["image/vnd.radiance", RGBELoader],
-    ["image/x-exr", EXRLoader]
-]);
-
 import { SceneLoaders } from "./SceneLoaders.ts";
-import { Pass } from "../../vendor/threejs@150/postprocessing/Pass.js";
-import { ShaderPass } from "../../vendor/threejs@150/postprocessing/ShaderPass.js";
+import { Pass } from "three/postprocessing/Pass.js";
+import { ShaderPass } from "three/postprocessing/ShaderPass.js";
+import { SSRPass } from "three/postprocessing/SSRPass.js";
+
+import { ProgressBar } from "../progressbar/ProgressBar.ts";
+
 
 export enum ThreeViewerEvent {
     beforerender = "beforerender",
@@ -37,6 +35,8 @@ export type ThreeViewSceneInfo = {
     textures: number,
     triangles: number
 }
+
+//const WEBGL2 = !!WebGL2RenderingContext;
 
 export class ThreeViewer extends HTMLElement {
 
@@ -57,7 +57,8 @@ export class ThreeViewer extends HTMLElement {
     private resizeObserver:ResizeObserver;
 
     private passes:Pass[];
-    private fxaaPass:ShaderPass;
+    
+    private progressBar: ProgressBar;
 
     constructor(){
         super();
@@ -65,27 +66,41 @@ export class ThreeViewer extends HTMLElement {
         if (!WebGLRenderingContext) throw new Error("WebGL is not supported");
 
         this.root = this.attachShadow({ mode: "closed" });
-        this.root.appendChild(document.createElement("style")).innerHTML = Params.STYLE;
+        this.root.appendChild(document.createElement("style")).innerHTML = constants.STYLE;
 
         this.renderer = new THREE.WebGLRenderer();
-        this.renderer.shadowMap!.enabled = true;
-        this.renderer.shadowMap!.type = THREE.PCFSoftShadowMap;
         this.renderer.setPixelRatio(devicePixelRatio);
-        this.renderer.toneMapping = THREE.LinearToneMapping;
         this.renderer.info!.autoReset = false;
-        Object.assign(this.renderer, Params.RENDERER);
+
+        Object.assign(this.renderer, constants.RENDERER);
+        Object.assign(this.renderer.shadowMap!, constants.SHADOW_MAP);
 
         this.camera = new THREE.PerspectiveCamera();
-        Object.assign(this.camera, Params.CAMERA);
+        Object.assign(this.camera, constants.CAMERA);
 
-        this.fxaaPass = new ShaderPass(FXAAShader);
+        const fxaaPass = new ShaderPass(FXAAShader);
+        const uniform = ((fxaaPass.material!.uniforms as any)[ 'resolution' ] as THREE.Uniform);
+		uniform.value.x = 1 / ( innerWidth * this.renderer.getPixelRatio() );
+		uniform.value.y = 1 / ( innerHeight * this.renderer.getPixelRatio() );
+
+        const ssrPass = new SSRPass( {
+            renderer: this.renderer,
+            scene: this.scene,
+            camera: this.camera,
+            width: 512,
+            height: 512,
+            groundReflector: null,
+            selects: null
+        });
 
         this.effectComposer = new EffectComposer(this.renderer);
         this.passes = [
             new RenderPass(this.scene, this.camera),
-            this.fxaaPass,
-            new UnrealBloomPass(new THREE.Vector2( 512, 512 ), .75, .1, .85)
+            ssrPass,
+            fxaaPass,
+            new UnrealBloomPass(...Object.values(constants.BLOOM))
         ];
+
         this.passes.forEach(pass => this.effectComposer.addPass(pass));
 
         this.root.appendChild(this.renderer.domElement);
@@ -98,7 +113,15 @@ export class ThreeViewer extends HTMLElement {
         ((this.camera as any).position as THREE.Vector3).set(0, 0, -12);
         this.camera.lookAt(0, 0, 0);
 
+        // Progress Bar
+        this.progressBar = this.root.appendChild(new ProgressBar());
+        this.progressBar.setAttribute("part", "progressbar");
+        this.progressBar.style.display = "none";
+        this.progressBar.style.opacity = "0";
+
         this.resizeObserver = new ResizeObserver(() => this.resizedCallback());
+
+        this.addEventListener("mousemove", (e:MouseEvent) => this.mouseMoveCallback(e));
     }
     
     connectedCallback(){
@@ -122,17 +145,11 @@ export class ThreeViewer extends HTMLElement {
 
         this.renderer.setSize(rect.width, rect.height);
         this.effectComposer.setSize(rect.width, rect.height);
-        
-        const pixelRatio = this.renderer.getPixelRatio();
-
-        const uniform = ((this.fxaaPass.material!.uniforms as any)[ 'resolution' ] as THREE.Uniform);
-		uniform.value.x = 1 / ( rect.width * pixelRatio );
-		uniform.value.y = 1 / ( rect.height * pixelRatio );
 
         this.requestRender();
     }
 
-    attributeChangedCallback(name:string, _oldValue:string, newValue:string):void{
+    attributeChangedCallback(name:string, _oldValue:string, newValue:string):void {
         switch(name){
             case "style": {
                 const bk = new THREE.Color(
@@ -164,6 +181,22 @@ export class ThreeViewer extends HTMLElement {
         }
     }
 
+    mouseMoveCallback(e:MouseEvent):void {
+        if (e.buttons != 0) return;
+
+        const r = this.getBoundingClientRect();
+        const pointer = new THREE.Vector2(
+            (e.clientX / r.width) * 2 - 1,
+            - (e.clientY / r.height) * 2 + 1);
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer, this.camera);
+        const intersects = raycaster.intersectObjects(this.scene.children);
+        const obj:THREE.Object3D & { cursor?:string } = intersects[0]?.object;
+        
+        this.style.cursor = obj?.cursor || "";
+    }
+
     requestRender():void {
         if (this.renderRequested) return;
 
@@ -180,7 +213,6 @@ export class ThreeViewer extends HTMLElement {
 
         this.userControls.update();
         this.scene.environment = this.envTexture;
-        //this.scene.background = this.envTexture;
         this.effectComposer.render();
 
         this.dispatchEvent(new CustomEvent(ThreeViewerEvent.afterrender));
@@ -196,7 +228,7 @@ export class ThreeViewer extends HTMLElement {
 
         if (src){
             const LoaderClass:typeof THREE.DataTextureLoader | undefined = 
-                EnvLoaders.get(MimeType.lookup(src));
+                constants.EnvLoaders.get(MimeType.lookup(src));
     
             if (!LoaderClass) throw new Error("Unsupported texture type");
 
@@ -216,15 +248,32 @@ export class ThreeViewer extends HTMLElement {
             const loaderInfo = SceneLoaders.get(MimeType.lookup(url));
             if (!loaderInfo) reject("Unsupported file type");
 
-            const loader = new loaderInfo!.module(THREE.DefaultLoadingManager);
+            const loadingManager = new THREE.LoadingManager();
+            loadingManager.onStart = () => {
+                this.progressBar.style.display = "";
+                this.progressBar.style.opacity = "1";
+            }
+            loadingManager.onLoad = () => {
+                this.progressBar.style.opacity = "0";
+                setTimeout(() => this.progressBar.style.display = "none", 500);
+            };
+            loadingManager.onProgress = (_url:string, i:number, t:number) => 
+                this.progressBar.value = i / t;
+
+            const loader = new loaderInfo!.module(loadingManager);
             const doneCallback = loaderInfo?.configure(loader);
             
-            (loader as any).load(url, (result: { scene: THREE.Group; }) => {
+            (loader as any).load(url, async (result: { scene: THREE.Group; }) => {
                 const group: THREE.Group = result.scene;
                 group.name = url.match(/([^\/\.]+)(\.[^\/]+)?$/)![1];
 
                 (group as any).rotation.order = "YXZ";
                 this.scene.add(group);
+
+                // Load scripts (if any)
+                const scriptURL = new URL(url.replace(/[^\.]+$/, "js"), document.location.href).href;
+                const mod = await import(scriptURL).catch(() => undefined);
+                mod ? new mod.default(group, this) : undefined;
 
                 this.requestRender();
 
@@ -274,4 +323,4 @@ export class ThreeViewer extends HTMLElement {
     static get observedAttributes() { return ["style", "src", "envsrc", "exposure"]; }
 }
 
-customElements.define("txt-three-viewer", ThreeViewer);
+customElements.define(`${PREFIX}-three-viewer`, ThreeViewer);
