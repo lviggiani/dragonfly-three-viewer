@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "dev": "deno run --watch --allow-all main.ts"
+  },
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable",
+      "deno.ns",
+      "deno.unstable"
+    ]
+  },
+  "imports": {
+    "three/": "./src/vendor/threejs@150/",
+    "three": "./src/vendor/threejs@150/three.module.js"
+  }
+}

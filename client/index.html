@@ -3,10 +3,31 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="js/dist/app-min.js" type="module"></script>
+        <script src="js/dist/app.js" type="module"></script>
         <title>Radici Car Viewer</title>
+        <link rel="stylesheet" href="css/main.css">
     </head>
     <body>
-        <txt-three-viewer></txt-three-viewer>
+        <txt-three-viewer 
+            envsrc="envmaps/forest.exr"
+            src="alfaromeo.glb">
+        </txt-three-viewer>
+        <div id="panel">
+            <table>
+                <tr>
+                    <td>Environment</td>
+                    <td><select id="envmap">
+                        <option>city</option>
+                        <option>courtyard</option>
+                        <option>forest</option>
+                        <option>interior</option>
+                        <option>night</option>
+                        <option>studio</option>
+                        <option>sunrise</option>
+                        <option>sunset</option>
+                    </select></td>
+                </tr>
+            </table>
+        </div>   
     </body>
 </html>

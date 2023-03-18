@@ -10,12 +10,16 @@
     "ESBuilder": {
         "enabled": true,
         "entryPoints": ["src/app.ts"],
-        "outfile": "client/js/dist/app-min.js",
+        "outdir": "client/js/dist/",
         "banner": {
             "js": "// deno-lint-ignore-file"
         },
         "bundle": true,
         "minify": false,
-        "module": true
+        "module": true,
+        "staticFiles": {
+            "src/vendor/threejs@150/libs/gltf/draco_decoder.wasm": "$OUTDIR",
+            "src/vendor/threejs@150/libs/gltf/draco_wasm_wrapper.js": "$OUTDIR"
+        }
     }
 }
