@@ -1183,7 +1183,6 @@ class GLTFMaterialsSpecularExtension {
 
 		}
 
-		console.log(materialParams);
 		return Promise.all( pending );
 
 	}

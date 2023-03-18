@@ -4,9 +4,7 @@ export const RENDERER = {
     antialias: false,
     alpha: false,
     logarithmicDepthBuffer: true,
-    outputEncoding: THREE.sRGBEncoding,
-    tonemapping: THREE.ReinhardToneMapping,
-    toneMappingExposure: 1
+    outputEncoding: THREE.sRGBEncoding
 }
 
 export const CAMERA = {
