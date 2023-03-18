@@ -37,6 +37,7 @@ df-three-viewer {
 
 #panel td {
     padding: 5px;
+    text-align: right;
 }
 
 #panel input, #panel select {
@@ -46,5 +47,37 @@ df-three-viewer {
 #info {
     font-size: .75rem;
     padding: 5px;
+}
+
+input[type="checkbox"]{
+    position: relative;
+    appearance: none;
+    width: 32px !important;
+    height: 16px;
+    border: 1px solid white;
+    background-color: grey;
+    border-radius: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+input[type="checkbox"]::after{
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: white;
+    left: 0;
+    top: 0;
+}
+
+input[type="checkbox"]:checked{
+    background-color: #2b80f6;
+}
+
+input[type="checkbox"]:checked:after{
+    left: unset;
+    right: 0;
 }
 

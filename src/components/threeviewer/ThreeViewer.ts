@@ -178,6 +178,19 @@ export class ThreeViewer extends HTMLElement {
                 this.requestRender();
                 break;
             }
+
+            case "bloom": {
+                (this.passes.find(pass => pass instanceof UnrealBloomPass) as UnrealBloomPass).strength = 
+                    (newValue || "true") == "true" ? constants.BLOOM.strength : 0;
+                this.requestRender();
+                break;
+            }
+
+            case "ssr": {
+                this.passes.find(pass => pass instanceof SSRPass)!.enabled = (newValue || "true") == "true";
+                this.requestRender();
+                break;
+            }
         }
     }
 
@@ -286,6 +299,10 @@ export class ThreeViewer extends HTMLElement {
         });
     }
 
+    getObjectByName(name:string):THREE.Object3D | undefined {
+        return this.scene.getObjectByName(name);
+    }
+
     get envsrc():string {
         return this.getAttribute("envsrc") || "";
     }
@@ -312,6 +329,22 @@ export class ThreeViewer extends HTMLElement {
         this.setAttribute("exposure", value.toString());
     }
 
+    get bloom():boolean {
+        return (this.getAttribute("bloom") || "true") == "true";
+    }
+
+    set bloom(value:boolean) {
+        this.setAttribute("bloom", String(value));
+    }
+
+    get ssr():boolean {
+        return (this.getAttribute("ssr") || "true") == "true";
+    }
+
+    set ssr(value:boolean) {
+        this.setAttribute("ssr", String(value));
+    }
+
     get info():ThreeViewSceneInfo {
         return {
             geometries: (this.renderer.info!.memory as any).geometries,
@@ -320,7 +353,10 @@ export class ThreeViewer extends HTMLElement {
         }
     }
 
-    static get observedAttributes() { return ["style", "src", "envsrc", "exposure"]; }
+    static get observedAttributes() { return [
+        "style", "src", "envsrc", "exposure",
+        "bloom", "ssr"]; 
+    }
 }
 
 customElements.define(`${PREFIX}-three-viewer`, ThreeViewer);

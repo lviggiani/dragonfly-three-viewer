@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { ThreeViewer, ThreeViewerEvent } from "./components/threeviewer/ThreeViewer.ts";
 
 export { BUILD_NUMBER } from "./build_number.ts";
@@ -16,5 +17,22 @@ addEventListener("load", () => {
     viewer.addEventListener(ThreeViewerEvent.load, _ => {
         const info = viewer.info;
         document.querySelector("#info")!.textContent = `geometries: ${info.geometries} | textures: ${info.textures} | polygons: ${info.triangles.toLocaleString()}`;
+    });
+
+    document.querySelector("#bloom")?.addEventListener("change", 
+        (e) => viewer.bloom =(e.target as HTMLInputElement).checked);
+
+    document.querySelector("#ssr")?.addEventListener("change", 
+        (e) => viewer.ssr =(e.target as HTMLInputElement).checked);
+
+    let saveMap:any = null;
+
+    document.querySelector("#ao")?.addEventListener("change", (e) => {
+        const v = (e.target as HTMLInputElement).checked;
+        const object:any = viewer.getObjectByName("body");
+
+        if (!v) saveMap = object.material.map;
+        object.material.map = v ? saveMap : null;
+        viewer.requestRender();
     });
 });
