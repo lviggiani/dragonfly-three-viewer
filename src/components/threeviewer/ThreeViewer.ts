@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 /* Author: Luca Viggiani <luca.viggiani@txtgroup.com>
    Credits: https://github.com/lviggiani/dragonfly-toolkit/
 */
@@ -31,13 +32,20 @@ export enum ThreeViewerEvent {
     load = "load"
 }
 
+export type ThreeViewSceneInfo = {
+    geometries: number,
+    textures: number,
+    triangles: number
+}
+
 export class ThreeViewer extends HTMLElement {
 
     private root:ShadowRoot;
 
     private scene = new THREE.Scene();
     private renderer: THREE.WebGLRenderer & {
-        shadowMap?: Record<string, unknown>
+        shadowMap?: Record<string, unknown>,
+        info?: Record<string, unknown>
     };
     private camera;
     private effectComposer:EffectComposer;
@@ -59,10 +67,12 @@ export class ThreeViewer extends HTMLElement {
         this.root = this.attachShadow({ mode: "closed" });
         this.root.appendChild(document.createElement("style")).innerHTML = Params.STYLE;
 
-        this.renderer = new THREE.WebGLRenderer(Params.RENDERER);
+        this.renderer = new THREE.WebGLRenderer();
         this.renderer.shadowMap!.enabled = true;
         this.renderer.shadowMap!.type = THREE.PCFSoftShadowMap;
         this.renderer.setPixelRatio(devicePixelRatio);
+        this.renderer.toneMapping = THREE.LinearToneMapping;
+        this.renderer.info!.autoReset = false;
         Object.assign(this.renderer, Params.RENDERER);
 
         this.camera = new THREE.PerspectiveCamera();
@@ -74,7 +84,7 @@ export class ThreeViewer extends HTMLElement {
         this.passes = [
             new RenderPass(this.scene, this.camera),
             this.fxaaPass,
-            new UnrealBloomPass(new THREE.Vector2( 512, 512 ), .75, 1.5, .85)
+            new UnrealBloomPass(new THREE.Vector2( 512, 512 ), .75, .1, .85)
         ];
         this.passes.forEach(pass => this.effectComposer.addPass(pass));
 
@@ -82,9 +92,9 @@ export class ThreeViewer extends HTMLElement {
 
         this.userControls = new OrbitControls(this.camera, this.renderer.domElement);
         this.userControls.addEventListener("change", () => this.requestRender());
+        this.userControls.maxPolarAngle = Math.PI / 2;
         this.userControls.enabled = true;
         
-        // deno-lint-ignore no-explicit-any
         ((this.camera as any).position as THREE.Vector3).set(0, 0, -12);
         this.camera.lookAt(0, 0, 0);
 
@@ -115,7 +125,6 @@ export class ThreeViewer extends HTMLElement {
         
         const pixelRatio = this.renderer.getPixelRatio();
 
-		// deno-lint-ignore no-explicit-any
         const uniform = ((this.fxaaPass.material!.uniforms as any)[ 'resolution' ] as THREE.Uniform);
 		uniform.value.x = 1 / ( rect.width * pixelRatio );
 		uniform.value.y = 1 / ( rect.height * pixelRatio );
@@ -144,6 +153,13 @@ export class ThreeViewer extends HTMLElement {
                 // TODO: remove any previously loaded scenes
                 const urls = newValue.split(/[,;]/);
                 urls.forEach(url => this.load(url));
+                break;
+            }
+
+            case "exposure": {
+                this.renderer.toneMappingExposure = this.exposure;
+                this.requestRender();
+                break;
             }
         }
     }
@@ -159,6 +175,8 @@ export class ThreeViewer extends HTMLElement {
         if (!this.renderRequested) return;
 
         this.dispatchEvent(new CustomEvent(ThreeViewerEvent.beforerender));
+
+        (this.renderer.info as any).reset();
 
         this.userControls.update();
         this.scene.environment = this.envTexture;
@@ -187,9 +205,10 @@ export class ThreeViewer extends HTMLElement {
                 this.envTexture = texture;
                 this.requestRender();
             });
+        } else {
+            this.requestRender();
         }
 
-        this.requestRender();
     }
     
     load(url:string){
@@ -200,20 +219,20 @@ export class ThreeViewer extends HTMLElement {
             const loader = new loaderInfo!.module(THREE.DefaultLoadingManager);
             const doneCallback = loaderInfo?.configure(loader);
             
-            // deno-lint-ignore no-explicit-any
             (loader as any).load(url, (result: { scene: THREE.Group; }) => {
                 const group: THREE.Group = result.scene;
                 group.name = url.match(/([^\/\.]+)(\.[^\/]+)?$/)![1];
 
-                // deno-lint-ignore no-explicit-any
                 (group as any).rotation.order = "YXZ";
                 this.scene.add(group);
-                console.log(group);
 
                 this.requestRender();
 
                 doneCallback!();
                 resolve(group);
+
+                requestAnimationFrame(() =>
+                    this.dispatchEvent(new CustomEvent(ThreeViewerEvent.load, { detail: group})));
             });
         });
     }
@@ -234,7 +253,25 @@ export class ThreeViewer extends HTMLElement {
         this.setAttribute("src", Array.isArray(value) ? value.join(",") : value);
     }
 
-    static get observedAttributes() { return ["style", "src", "envsrc"]; }
+    get exposure():number{
+        const v = this.getAttribute("exposure");
+        return !v ? 1 : Number(v);
+    }
+
+    set exposure(value:number){
+        value = Math.max(0, value);
+        this.setAttribute("exposure", value.toString());
+    }
+
+    get info():ThreeViewSceneInfo {
+        return {
+            geometries: (this.renderer.info!.memory as any).geometries,
+            textures: (this.renderer.info!.memory as any).textures,
+            triangles: (this.renderer.info!.render as any).triangles
+        }
+    }
+
+    static get observedAttributes() { return ["style", "src", "envsrc", "exposure"]; }
 }
 
 customElements.define("txt-three-viewer", ThreeViewer);
