@@ -25,7 +25,7 @@ export const SHADOW_MAP = {
 export const BLOOM = {
     resolution: new THREE.Vector2( 512, 512 ), 
     strength: .75, 
-    radius: .1, 
+    radius: .01, 
     threshold: .85
 }
 

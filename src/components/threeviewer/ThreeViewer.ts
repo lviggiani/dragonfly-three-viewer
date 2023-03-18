@@ -181,7 +181,7 @@ export class ThreeViewer extends HTMLElement {
 
             case "bloom": {
                 (this.passes.find(pass => pass instanceof UnrealBloomPass) as UnrealBloomPass).strength = 
-                    (newValue || "true") == "true" ? constants.BLOOM.strength : 0;
+                    constants.BLOOM.strength * this.bloom;
                 this.requestRender();
                 break;
             }
@@ -226,6 +226,7 @@ export class ThreeViewer extends HTMLElement {
 
         this.userControls.update();
         this.scene.environment = this.envTexture;
+        //this.scene.background = this.envTexture;
         this.effectComposer.render();
 
         this.dispatchEvent(new CustomEvent(ThreeViewerEvent.afterrender));
@@ -329,11 +330,11 @@ export class ThreeViewer extends HTMLElement {
         this.setAttribute("exposure", value.toString());
     }
 
-    get bloom():boolean {
-        return (this.getAttribute("bloom") || "true") == "true";
+    get bloom():number {
+        return Number(this.getAttribute("bloom") || "1");
     }
 
-    set bloom(value:boolean) {
+    set bloom(value:number) {
         this.setAttribute("bloom", String(value));
     }
 
