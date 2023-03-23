@@ -22,12 +22,14 @@ import { ShaderPass } from "three/postprocessing/ShaderPass.js";
 import { SSRPass } from "three/postprocessing/SSRPass.js";
 
 import { ProgressBar } from "../progressbar/ProgressBar.ts";
-
+import { Cameraman, ViewAngle } from "./Cameraman.ts";
+//import { deg2Rad } from "../../utils/math-utils.ts";
 
 export enum ThreeViewerEvent {
     beforerender = "beforerender",
     afterrender = "aftererender",
-    load = "load"
+    load = "load",
+    objectclick = "objectclick"
 }
 
 export type ThreeViewSceneInfo = {
@@ -37,7 +39,7 @@ export type ThreeViewSceneInfo = {
 }
 
 //const WEBGL2 = !!WebGL2RenderingContext;
-const isMobile = window.matchMedia("(pointer:coarse)").matches;
+//const isMobile = window.matchMedia("(pointer:coarse)").matches;
 
 export class ThreeViewer extends HTMLElement {
 
@@ -52,6 +54,8 @@ export class ThreeViewer extends HTMLElement {
     private effectComposer:EffectComposer;
     private envTexture:THREE.Texture | null = null;
     private userControls:OrbitControls;
+    private envLight = new THREE.HemisphereLight(0xffffbb, 0x080820, .5);
+    private sunLight = new THREE.PointLight(0xffffff, 1);
 
     private renderRequested = false;
 
@@ -60,6 +64,12 @@ export class ThreeViewer extends HTMLElement {
     private passes:Pass[];
     
     private progressBar: ProgressBar;
+
+    private bkString = "";
+
+    private interactive = false;
+
+    cameraman:Cameraman;
 
     constructor(){
         super();
@@ -88,8 +98,8 @@ export class ThreeViewer extends HTMLElement {
             renderer: this.renderer,
             scene: this.scene,
             camera: this.camera,
-            width: 256,
-            height: 256,
+            width: 512,
+            height: 512,
             groundReflector: null,
             selects: null
         });
@@ -106,17 +116,16 @@ export class ThreeViewer extends HTMLElement {
 
         this.root.appendChild(this.renderer.domElement);
 
-        let ssrEnabled = false;
-
         this.userControls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.userControls.enablePan = false;
         this.userControls.addEventListener("change", () => this.requestRender());
-        if (isMobile) this.userControls.addEventListener("start", () => {
-            ssrEnabled = ssrPass.enabled;
-            ssrPass.enabled = false
+        this.userControls.addEventListener("start", () => {
+            this.interactive = true;
+            this.requestRender();
         });
 
-        if (isMobile) this.userControls.addEventListener("end", () => {
-            ssrPass.enabled = ssrEnabled;
+        this.userControls.addEventListener("end", () => {
+            this.interactive = false;
             this.requestRender();
         });
 
@@ -125,6 +134,13 @@ export class ThreeViewer extends HTMLElement {
         
         ((this.camera as any).position as THREE.Vector3).set(0, 0, -12);
         this.camera.lookAt(0, 0, 0);
+        this.scene.add(this.camera);
+
+        this.scene.add(this.envLight);
+        this.scene.add(this.sunLight);
+        ((this.sunLight as any).position as THREE.Vector3).set(0, 100, 50);
+
+        this.cameraman = new Cameraman(this.camera, this.userControls, () => this.requestRender());
 
         // Progress Bar
         this.progressBar = this.root.appendChild(new ProgressBar());
@@ -134,15 +150,19 @@ export class ThreeViewer extends HTMLElement {
 
         this.resizeObserver = new ResizeObserver(() => this.resizedCallback());
 
+        let mouseMoved = false;
         this.addEventListener("mousemove", (e:MouseEvent) => this.mouseMoveCallback(e));
+        this.addEventListener("click", (e:MouseEvent) => !mouseMoved ? this.mouseClickCallback(e) : undefined);
+        this.addEventListener("mousedown", () => mouseMoved = false);
+        this.addEventListener("mousemove", () => mouseMoved = true);
     }
     
     connectedCallback(){
         if (!this.isConnected) return;
         this.resizeObserver.observe(this);
 
-        const bk = new THREE.Color(
-            getComputedStyle(this).getPropertyValue("background-color"));
+        this.bkString = getComputedStyle(this).getPropertyValue("background-color");
+        const bk = new THREE.Color(this.bkString);
         
         this.renderer.setClearColor(bk);
     }
@@ -165,8 +185,11 @@ export class ThreeViewer extends HTMLElement {
     attributeChangedCallback(name:string, _oldValue:string, newValue:string):void {
         switch(name){
             case "style": {
-                const bk = new THREE.Color(
-                    getComputedStyle(this).getPropertyValue("background-color"));
+                if (getComputedStyle(this).getPropertyValue("background-color") == this.bkString)
+                    return;
+
+                this.bkString = getComputedStyle(this).getPropertyValue("background-color");
+                const bk = new THREE.Color(this.bkString);
                 
                 this.renderer.setClearColor(bk);
                 this.requestRender();
@@ -204,23 +227,44 @@ export class ThreeViewer extends HTMLElement {
                 this.requestRender();
                 break;
             }
+
+            case "view": {
+                this.cameraman.lookAt(this.scene, this.view, ViewAngle.center);
+                break;
+            }
+
+            /*case "rotation": {
+                ((this.scene as any).rotation as THREE.Vector3).y = deg2Rad(this.rotation);
+                this.requestRender();
+            }*/
         }
+    }
+
+    mouseClickCallback(e:MouseEvent){
+        const detail = this.getIntersectsAtPixel(e.clientX, e.clientY)[0];
+        if (!detail) return;
+
+        this.dispatchEvent(new CustomEvent(ThreeViewerEvent.objectclick, { detail }));
     }
 
     mouseMoveCallback(e:MouseEvent):void {
         if (e.buttons != 0) return;
 
-        const r = this.getBoundingClientRect();
-        const pointer = new THREE.Vector2(
-            (e.clientX / r.width) * 2 - 1,
-            - (e.clientY / r.height) * 2 + 1);
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(pointer, this.camera);
-        const intersects = raycaster.intersectObjects(this.scene.children);
+        const intersects = this.getIntersectsAtPixel(e.clientX, e.clientY);
         const obj:THREE.Object3D & { cursor?:string } = intersects[0]?.object;
         
         this.style.cursor = obj?.cursor || "";
+    }
+
+    private getIntersectsAtPixel(x: number, y: number) {
+        const r = this.getBoundingClientRect();
+        const pointer = new THREE.Vector2(
+            (x / r.width) * 2 - 1,
+            - (y / r.height) * 2 + 1);
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer, this.camera);
+        return  raycaster.intersectObjects(this.scene.children);
     }
 
     requestRender():void {
@@ -235,14 +279,27 @@ export class ThreeViewer extends HTMLElement {
 
         this.dispatchEvent(new CustomEvent(ThreeViewerEvent.beforerender));
 
-        (this.renderer.info as any).reset();
+        if (!this.interactive && this.ssr)
+            this.passes.find(pass => pass instanceof SSRPass)!.enabled = true;
 
+        const gl = this.renderer.getContext();
+        gl.flush();
+        gl.finish();
+
+        let renderTime = performance.now();
+
+        (this.renderer.info as any).reset();
         this.userControls.update();
-        this.scene.environment = this.envTexture;
-        //this.scene.background = this.envTexture;
         this.effectComposer.render();
 
-        this.dispatchEvent(new CustomEvent(ThreeViewerEvent.afterrender));
+        gl.flush();
+        gl.finish();
+
+        renderTime = performance.now() - renderTime;
+        this.dispatchEvent(new CustomEvent(ThreeViewerEvent.afterrender, { detail: { renderTime }}));
+        
+        if (this.interactive && this.ssr && renderTime > 20)
+            this.passes.find(pass => pass instanceof SSRPass)!.enabled = false;
 
         this.renderRequested = false;
     }
@@ -262,9 +319,13 @@ export class ThreeViewer extends HTMLElement {
             new LoaderClass().load(src, (texture:THREE.Texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 this.envTexture = texture;
+                this.scene.environment = this.envTexture;
+                this.envLight.visible = this.sunLight.visible = false;
                 this.requestRender();
             });
         } else {
+            this.scene.environment = null;
+            this.envLight.visible = this.sunLight.visible = true;
             this.requestRender();
         }
 
@@ -302,7 +363,9 @@ export class ThreeViewer extends HTMLElement {
                 const mod = await import(scriptURL).catch(() => undefined);
                 mod ? new mod.default(group, this) : undefined;
 
-                this.requestRender();
+                this.renderer.compile(group, this.camera);
+
+                this.cameraman.lookAt(this.scene, this.view, ViewAngle.center);
 
                 doneCallback!();
                 resolve(group);
@@ -359,6 +422,25 @@ export class ThreeViewer extends HTMLElement {
         this.setAttribute("ssr", String(value));
     }
 
+    get view():ViewAngle {
+        const attr = (this.getAttribute("view") || "").toLowerCase().replaceAll(/[\s-]/g, "_");
+        const v = Object.values(ViewAngle).indexOf(attr);
+        return v >= 0 ? v : ViewAngle.front;
+    }
+
+    set view(value:ViewAngle) {
+        this.setAttribute("view", Object.values(ViewAngle)[value] as string);
+    }
+
+    get rotation():number {
+        const n = Number(this.getAttribute("rotation") || 0)
+        return isNaN(n) ? 0 : n;
+    }
+
+    set rotation(value:number) {
+        this.setAttribute("rotation", value.toString());
+    }
+
     get info():ThreeViewSceneInfo {
         return {
             geometries: (this.renderer.info!.memory as any).geometries,
@@ -369,7 +451,7 @@ export class ThreeViewer extends HTMLElement {
 
     static get observedAttributes() { return [
         "style", "src", "envsrc", "exposure",
-        "bloom", "ssr"]; 
+        "bloom", "ssr", "view" ]; 
     }
 }
 

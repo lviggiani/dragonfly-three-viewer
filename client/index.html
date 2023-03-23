@@ -4,19 +4,25 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="js/dist/app.js" type="module"></script>
-        <title>Three Viewer</title>
+        <title>Car Viewer</title>
         <link rel="stylesheet" href="css/main.css">
     </head>
     <body>
         <df-three-viewer 
             envsrc="envmaps/forest.exr"
-            src="toy_airplane.glb">
+            src="alfaromeo.glb"
+            view="front-top-right">
         </df-three-viewer>
         <div id="panel">
             <table>
                 <tr>
+                    <td>Preset view</td>
+                    <td><select id="view"></select></td>
+                </tr>
+                <tr>
                     <td>Environment</td>
                     <td><select id="envmap">
+                        <option value="">- none -</option>
                         <option>city</option>
                         <option>courtyard</option>
                         <option>forest</option>
@@ -55,6 +61,7 @@
             </table>
             <div id="wrapper"></div>
             <div id="info">info</div>
-        </div>   
+            <df-progressbar></df-progressbar>
+        </div>
     </body>
 </html>
