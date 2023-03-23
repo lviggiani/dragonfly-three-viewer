@@ -25,6 +25,10 @@ import { ProgressBar } from "../progressbar/ProgressBar.ts";
 import { Cameraman, ViewAngle } from "./Cameraman.ts";
 //import { deg2Rad } from "../../utils/math-utils.ts";
 
+import { Tweener } from "../../utils/Tweener.ts";
+
+new Tweener({ a:0 }, 4000, 2).start();
+
 export enum ThreeViewerEvent {
     beforerender = "beforerender",
     afterrender = "aftererender",
