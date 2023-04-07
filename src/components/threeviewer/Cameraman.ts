@@ -134,8 +134,10 @@ class Cameraman {
                     positionStart,
                     this.getCurveControlPoint(positionStart, positionEnd, target),
                     positionEnd) : undefined;
+
+            TWEEN.removeAll();
     
-            new TWEEN.Tween(o)
+            const tween = new TWEEN.Tween(o)
             .to({ t: 1}, time)
             .easing(TWEEN.Easing.Quartic.Out)
             .onUpdate(() =>{
@@ -151,6 +153,7 @@ class Cameraman {
                 this.renderCallback();
             })
             .onComplete(() => {
+                TWEEN.remove(tween);
                 this.userControls.enabled = true;
                 this.renderCallback();
                 resolve();
