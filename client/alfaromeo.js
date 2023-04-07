@@ -2,16 +2,22 @@ export default class Alfaromeo {
     constructor(target, view){
         this.target = target;
         this.view = view;
-        const _body = target.getObjectByName("body");
-        const plane = target.getObjectByName("Plane");
-        const logo = target.getObjectByName("logo_front");
+        this.init()
+    }
 
-        logo.cursor = "pointer";
+    async init(){
+        const _body = this.target.getObjectByName("body");
+        const plane = this.target.getObjectByName("Plane");
+        const logo = this.target.getObjectByName("logo_front");
+
+        //logo.cursor = "pointer";
         plane.excludeFromBox = true;
 
-        view.addEventListener("objectclick", e => {
-            if (e.detail.object != logo) return;
-            view.cameraman.lookAt(logo, 1, 0);
-        })
+        const point = this.view.cameraman.getObjectViewPoint(logo, this.view.TargetPoint.front_top_left);
+        const sprite = await this.view.addSprite("sprite01", "img/plus.png", 32, 32);
+        sprite.position.copy(point);
+        sprite.center.set(0, 0);
+        sprite.cursor = "pointer";
+
     }
 }

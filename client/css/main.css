@@ -49,6 +49,28 @@ df-three-viewer {
     padding: 5px;
 }
 
+#detail {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: #000000aa;
+    backdrop-filter: blur(3px);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    max-width: 300px;
+    transition: all .5s ease-out;
+}
+
+#detail button {
+    align-self: center;
+    margin: 10px;
+    cursor: pointer;
+}
+
 input[type="checkbox"]{
     position: relative;
     appearance: none;

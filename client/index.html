@@ -9,9 +9,10 @@
     </head>
     <body>
         <df-three-viewer 
-            envsrc="envmaps/forest.exr"
+            envsrc="envmaps/courtyard.exr"
             src="toy_airplane.glb"
-            view="front-top-right">
+            view="front-top-right"
+            timing="1000">
         </df-three-viewer>
         <div id="panel">
             <table>
@@ -58,10 +59,18 @@
                     <td>Mettallic Pain</td>
                     <td><input type="checkbox" id="metallic"></td>
                 </tr>
+                <tr>
+                    <td>X-Ray</td>
+                    <td><input type="checkbox" id="xray"></td>
+                </tr>
             </table>
             <div id="wrapper"></div>
             <div id="info">info</div>
             <df-progressbar></df-progressbar>
+        </div>
+        <div id="detail">
+            <div>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum quis pharetra odio, eget ornare justo. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Phasellus sed sem ligula. Nulla non velit lacus. Vivamus aliquam est ex, eu consectetur purus tincidunt id. Duis vulputate vestibulum scelerisque. Phasellus egestas vel libero at rutrum. Aenean maximus ipsum orci, vitae malesuada nibh facilisis volutpat.</div>
+            <button>Close</button>
         </div>
     </body>
 </html>

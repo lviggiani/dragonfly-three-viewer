@@ -22,16 +22,8 @@ import { ShaderPass } from "three/postprocessing/ShaderPass.js";
 import { SSRPass } from "three/postprocessing/SSRPass.js";
 
 import { ProgressBar } from "../progressbar/ProgressBar.ts";
-import { Cameraman, ViewAngle } from "./Cameraman.ts";
+import { Cameraman, TargetPoint } from "./Cameraman.ts";
 //import { deg2Rad } from "../../utils/math-utils.ts";
-
-import { Tweener } from "../../utils/Tweener.ts";
-import { easeOutQuad } from "../../utils/easing.ts";
-
-new Tweener({ a:0, b:1, c: .5 }, 1, easeOutQuad)
-.addKeyframe({ time: 2000, values: { a: 2, c: .5 }})
-.addKeyframe({ time: 4000, values: { a: 1, b: 0 }})
-.start();
 
 export enum ThreeViewerEvent {
     beforerender = "beforerender",
@@ -190,7 +182,7 @@ export class ThreeViewer extends HTMLElement {
         this.requestRender();
     }
 
-    attributeChangedCallback(name:string, _oldValue:string, newValue:string):void {
+    async attributeChangedCallback(name:string, _oldValue:string, newValue:string) {
         switch(name){
             case "style": {
                 if (getComputedStyle(this).getPropertyValue("background-color") == this.bkString)
@@ -237,14 +229,21 @@ export class ThreeViewer extends HTMLElement {
             }
 
             case "view": {
-                this.cameraman.lookAt(this.scene, this.view, ViewAngle.center);
+                const time = Number(this.getAttribute("timing"));
+                const ssrPass = this.passes.find(pass => pass instanceof SSRPass) as SSRPass;
+                this.interactive = true;
+                ssrPass.enabled = false;
+
+                await this.lookAt(
+                    this.scene, 
+                    this.view, 
+                    TargetPoint.center, 
+                    -1, 
+                    time,
+                    "curved");
+                this.interactive = false;
                 break;
             }
-
-            /*case "rotation": {
-                ((this.scene as any).rotation as THREE.Vector3).y = deg2Rad(this.rotation);
-                this.requestRender();
-            }*/
         }
     }
 
@@ -357,7 +356,7 @@ export class ThreeViewer extends HTMLElement {
                 this.progressBar.value = i / t;
 
             const loader = new loaderInfo!.module(loadingManager);
-            const doneCallback = loaderInfo?.configure(loader);
+            const doneCallback = loaderInfo!.configure(loader);
             
             (loader as any).load(url, async (result: { scene: THREE.Group; }) => {
                 const group: THREE.Group = result.scene;
@@ -373,19 +372,55 @@ export class ThreeViewer extends HTMLElement {
 
                 this.renderer.compile(group, this.camera);
 
-                this.cameraman.lookAt(this.scene, this.view, ViewAngle.center);
+                this.cameraman.lookAt(this.scene, this.view, TargetPoint.center);
 
-                doneCallback!();
+                doneCallback();
                 resolve(group);
 
                 requestAnimationFrame(() =>
                     this.dispatchEvent(new CustomEvent(ThreeViewerEvent.load, { detail: group})));
+            
             });
         });
     }
 
     getObjectByName(name:string):THREE.Object3D | undefined {
         return this.scene.getObjectByName(name);
+    }
+
+    async lookAt(target:THREE.Object3D, 
+        viewFrom = TargetPoint.front,
+        lookAt = TargetPoint.center,
+        distanceFactor = -1,
+        time = 0,
+        pathType: "linear" | "curved" = "linear"){
+
+            const ssrPass = this.passes.find(pass => pass instanceof SSRPass) as SSRPass;
+            this.interactive = true;
+            ssrPass.enabled = false;
+
+            await this.cameraman.lookAt(target, viewFrom, lookAt, distanceFactor, time, pathType);
+            
+            ssrPass.enabled = this.ssr;
+    }
+
+    addSprite(name:string, src:string, width:number, height:number):Promise<THREE.Sprite> {
+        return new Promise((resolve, reject) => {
+            new THREE.TextureLoader().load(
+                src,
+                (texture:THREE.Texture) => {
+                    const material = new THREE.SpriteMaterial( { map: texture } );
+                    material.sizeAttenuation = false;
+                    const sprite = new THREE.Sprite(material);
+                    (sprite as any).scale.set(1 / width, 1 / height, 1);
+                    sprite.name = name;
+                    this.scene.add(sprite);
+                    this.requestRender();
+                    resolve(sprite);
+                },
+                undefined,
+                (error:Error) => reject(error))
+        })
     }
 
     get envsrc():string {
@@ -430,14 +465,14 @@ export class ThreeViewer extends HTMLElement {
         this.setAttribute("ssr", String(value));
     }
 
-    get view():ViewAngle {
+    get view():TargetPoint {
         const attr = (this.getAttribute("view") || "").toLowerCase().replaceAll(/[\s-]/g, "_");
-        const v = Object.values(ViewAngle).indexOf(attr);
-        return v >= 0 ? v : ViewAngle.front;
+        const v = Object.values(TargetPoint).indexOf(attr);
+        return v >= 0 ? v : TargetPoint.front;
     }
 
-    set view(value:ViewAngle) {
-        this.setAttribute("view", Object.values(ViewAngle)[value] as string);
+    set view(value:TargetPoint) {
+        this.setAttribute("view", Object.values(TargetPoint)[value] as string);
     }
 
     get rotation():number {
@@ -456,6 +491,8 @@ export class ThreeViewer extends HTMLElement {
             triangles: (this.renderer.info!.render as any).triangles
         }
     }
+
+    get TargetPoint() { return TargetPoint }
 
     static get observedAttributes() { return [
         "style", "src", "envsrc", "exposure",

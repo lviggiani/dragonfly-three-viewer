@@ -8,19 +8,22 @@ import {
     PerspectiveCamera,
     Object3D,
     Sphere,
-    Scene
+    Scene,
+    QuadraticBezierCurve3
 } from "three";
 
 import { OrbitControls } from "three/controls/OrbitControls.js";
 
 import { deg2Rad } from "../../utils/math-utils.ts";
 
+import * as TWEEN from "../../vendor/tween.esm.js";
+
 export type Angles = {
     a:number;
     b:number;
 }
 
-export enum ViewAngle {
+export enum TargetPoint {
     "center",               // 0
     "front",                // 1
     "top",                  // 2
@@ -50,41 +53,41 @@ export enum ViewAngle {
     "right_bottom"
 }
 
-const VIEW_ANGLES= new Map<ViewAngle, Angles | null>([
-    [ViewAngle.center, null],
+const VIEW_ANGLES= new Map<TargetPoint, Angles | null>([
+    [TargetPoint.center, null],
 
-    [ViewAngle.front, { a: Math.PI / 2, b: 0 }],
-    [ViewAngle.top, { a: Math.PI / 2, b: Math.PI / 2 }],
-    [ViewAngle.bottom, { a: Math.PI / 2, b: -Math.PI / 2 }],
-    [ViewAngle.rear, { a: -Math.PI / 2, b: 0 }],
-    [ViewAngle.left, { a: 0, b: 0 }],
-    [ViewAngle.right, { a: Math.PI, b: 0 }],
+    [TargetPoint.front, { a: Math.PI / 2, b: 0 }],
+    [TargetPoint.top, { a: Math.PI / 2, b: Math.PI / 2 }],
+    [TargetPoint.bottom, { a: Math.PI / 2, b: -Math.PI / 2 }],
+    [TargetPoint.rear, { a: -Math.PI / 2, b: 0 }],
+    [TargetPoint.left, { a: 0, b: 0 }],
+    [TargetPoint.right, { a: Math.PI, b: 0 }],
 
-    [ViewAngle.front_top, { a: Math.PI / 2, b: Math.PI / 4 }],
-    [ViewAngle.front_left, { a: Math.PI / 4, b: 0 }],
-    [ViewAngle.front_right, { a: Math.PI * .75, b: 0 }],
-    [ViewAngle.front_bottom, { a: Math.PI / 2, b: -Math.PI / 4 }],
+    [TargetPoint.front_top, { a: Math.PI / 2, b: Math.PI / 4 }],
+    [TargetPoint.front_left, { a: Math.PI / 4, b: 0 }],
+    [TargetPoint.front_right, { a: Math.PI * .75, b: 0 }],
+    [TargetPoint.front_bottom, { a: Math.PI / 2, b: -Math.PI / 4 }],
 
-    [ViewAngle.front_top_left, { a: Math.PI / 4, b: Math.PI / 4 }],
-    [ViewAngle.front_top_right, { a: Math.PI * .75, b: Math.PI / 4 }],
-    [ViewAngle.front_bottom_left, { a: Math.PI / 4, b: -Math.PI / 4 }],
-    [ViewAngle.front_bottom_right, { a: Math.PI * .75, b: -Math.PI / 4 }],
+    [TargetPoint.front_top_left, { a: Math.PI / 4, b: Math.PI / 4 }],
+    [TargetPoint.front_top_right, { a: Math.PI * .75, b: Math.PI / 4 }],
+    [TargetPoint.front_bottom_left, { a: Math.PI / 4, b: -Math.PI / 4 }],
+    [TargetPoint.front_bottom_right, { a: Math.PI * .75, b: -Math.PI / 4 }],
 
-    [ViewAngle.rear_top, { a: -Math.PI / 2, b: Math.PI / 4 }],
-    [ViewAngle.rear_left, { a: -Math.PI / 4, b: 0 }],
-    [ViewAngle.rear_right, { a: -Math.PI * .75, b: 0 }],
-    [ViewAngle.rear_bottom, { a: -Math.PI / 2, b: -Math.PI / 4 }],
+    [TargetPoint.rear_top, { a: -Math.PI / 2, b: Math.PI / 4 }],
+    [TargetPoint.rear_left, { a: -Math.PI / 4, b: 0 }],
+    [TargetPoint.rear_right, { a: -Math.PI * .75, b: 0 }],
+    [TargetPoint.rear_bottom, { a: -Math.PI / 2, b: -Math.PI / 4 }],
 
-    [ViewAngle.rear_top_left, { a: -Math.PI / 4, b: Math.PI / 4 }],
-    [ViewAngle.rear_top_right, { a: -Math.PI * .75, b: Math.PI / 4 }],
-    [ViewAngle.rear_bottom_left, { a: -Math.PI / 4, b: -Math.PI / 4 }],
-    [ViewAngle.rear_bottom_right, { a: -Math.PI * .75, b: -Math.PI / 4 }],
+    [TargetPoint.rear_top_left, { a: -Math.PI / 4, b: Math.PI / 4 }],
+    [TargetPoint.rear_top_right, { a: -Math.PI * .75, b: Math.PI / 4 }],
+    [TargetPoint.rear_bottom_left, { a: -Math.PI / 4, b: -Math.PI / 4 }],
+    [TargetPoint.rear_bottom_right, { a: -Math.PI * .75, b: -Math.PI / 4 }],
 
-    [ViewAngle.left_top, { a: 0, b: Math.PI / 4 }],
-    [ViewAngle.left_bottom, { a: 0, b: -Math.PI / 4 }],
+    [TargetPoint.left_top, { a: 0, b: Math.PI / 4 }],
+    [TargetPoint.left_bottom, { a: 0, b: -Math.PI / 4 }],
 
-    [ViewAngle.right_top, { a: Math.PI, b: Math.PI / 4 }],
-    [ViewAngle.right_bottom, { a: Math.PI, b: -Math.PI / 4 }]
+    [TargetPoint.right_top, { a: Math.PI, b: Math.PI / 4 }],
+    [TargetPoint.right_bottom, { a: Math.PI, b: -Math.PI / 4 }]
 ]);
 
 class Cameraman {
@@ -98,45 +101,78 @@ class Cameraman {
         this.userControls = userControls;
     }
 
-    lookAt(target:Object3D, viewFrom = ViewAngle.front, lookAt = ViewAngle.center, distanceFactor = -1){
+    lookAt(target:Object3D, 
+        viewFrom = TargetPoint.front,
+        lookAt = TargetPoint.center,
+        distanceFactor = -1,
+        time = 0,
+        pathType: "linear" | "curved" = "linear"){
 
-        const scene = this.findScene(target)!;
-        scene.updateMatrixWorld();
+        return new Promise<void>((resolve) => {
+            const scene = this.findScene(target)!;
+            scene.updateMatrixWorld();
+    
+            this.userControls.update();
+            const positionStart = (this.camera as any).position.clone() as Vector3,
+                  lookAtStart = this.userControls.target.clone() as Vector3;
+    
+            distanceFactor = distanceFactor <= 0 ? Math.tan(Math.PI / 2 - deg2Rad(this.camera.fov / 2)) : distanceFactor;
+    
+            const lookAtEnd = this.getObjectViewPoint(target, lookAt),
+                  positionEnd = new Vector3().lerpVectors(
+                    lookAtEnd, this.getObjectViewPoint(target, viewFrom), distanceFactor);
+    
+            this.userControls.enabled = false;
+    
+            const o = { t: 0 };
+    
+            const animate = () => 
+                TWEEN.update() ? requestAnimationFrame(animate) : undefined;
 
-        const _positionStart = (this.camera as any).position.clone(),
-              _rotationStart = (this.camera as any).rotation.clone();
-
-        const lookAtPoint = this.getObjectViewPoint(target, lookAt),
-              positionEnd = this.getObjectViewPoint(target, viewFrom);
-
-        distanceFactor = distanceFactor <= 0 ? Math.tan(Math.PI / 2 - deg2Rad(this.camera.fov / 2)) : distanceFactor;
-        if (this.userControls) this.userControls.enabled = false;
-
-        (this.camera as any).position.copy(new Vector3().lerpVectors(lookAtPoint, positionEnd, distanceFactor));
-        this.camera.lookAt(lookAtPoint);
-        this.camera.updateProjectionMatrix();
-
-        if (this.userControls) {
-            this.userControls.target.copy(lookAtPoint);
-            this.userControls.enabled = true;
-        }
-
-        this.renderCallback();
+            const bezier = pathType == "curved" ?
+                new QuadraticBezierCurve3(
+                    positionStart,
+                    this.getCurveControlPoint(positionStart, positionEnd, target),
+                    positionEnd) : undefined;
+    
+            new TWEEN.Tween(o)
+            .to({ t: 1}, time)
+            .easing(TWEEN.Easing.Quartic.Out)
+            .onUpdate(() =>{
+                const t = o.t;
+                if (pathType == "linear"){
+                    (this.camera as any).position.copy(new Vector3().lerpVectors(positionStart, positionEnd, t));
+                } else {
+                    bezier?.getPoint(t, (this.camera as any).position);
+                }
+                this.camera.lookAt(new Vector3().lerpVectors(lookAtStart, lookAtEnd, t));
+                this.camera.updateProjectionMatrix();
+                this.userControls.target.copy(new Vector3().lerpVectors(lookAtStart, lookAtEnd, t));
+                this.renderCallback();
+            })
+            .onComplete(() => {
+                this.userControls.enabled = true;
+                this.renderCallback();
+                resolve();
+            })
+            .start();
+            animate();
+        })
     }
 
-    getObjectViewPoint(target: Object3D, pointName: ViewAngle){
+    getObjectViewPoint(target: Object3D, pointName: TargetPoint):Vector3 {
         const box = this.getBoundingBox(target),
               size:Vector3 = box.getSize(new Vector3()),
               sphere = box.getBoundingSphere(new Sphere());
 
         if (VIEW_ANGLES.get(pointName) === undefined){
             console.warn(`Invalid value "${pointName}". Falling back to "center"`);
-            pointName = ViewAngle.center;
+            pointName = TargetPoint.center;
         }
 
         // z coordinate is towards you
         switch(pointName){
-            case ViewAngle.center: return box.getCenter(new Vector3());
+            case TargetPoint.center: return box.getCenter(new Vector3());
             default: {
                 const { a, b } = VIEW_ANGLES.get(pointName)!;
                 const v = new Vector3(
@@ -144,10 +180,26 @@ class Cameraman {
                     Math.sin(b) * size.y / 2,
                     Math.sin(a) * Math.cos(b) * size.z / 2);
                 
-                const c = sphere.radius / v.length();
+                const c = v.length() ? sphere.radius / v.length() : 0;
                 return box.getCenter(new Vector3()).add(v.multiplyScalar(c));
             }
         }
+    }
+
+    getCurveControlPoint(a:Vector3, b:Vector3, target:Object3D):Vector3 {
+        const p = new Vector3().lerpVectors(a, b, Math.SQRT1_2);
+        let c = new Vector3()
+        .subVectors(a, p)
+        .applyAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+        .add(new Vector3().lerpVectors(a, b, .5));
+
+        if (new Box3().setFromObject(target).containsPoint(c))
+            c = new Vector3()
+            .subVectors(b, p)
+            .applyAxisAngle(new Vector3(0, 1, 0), -Math.PI / 2)
+            .add(new Vector3().lerpVectors(a, b, .5));
+
+        return c;
     }
 
     private getBoundingBox(target:Object3D):Box3{
