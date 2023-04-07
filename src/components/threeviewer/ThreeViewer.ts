@@ -26,8 +26,12 @@ import { Cameraman, ViewAngle } from "./Cameraman.ts";
 //import { deg2Rad } from "../../utils/math-utils.ts";
 
 import { Tweener } from "../../utils/Tweener.ts";
+import { easeOutQuad } from "../../utils/easing.ts";
 
-new Tweener({ a:0 }, 4000, 2).start();
+new Tweener({ a:0, b:1, c: .5 }, 1, easeOutQuad)
+.addKeyframe({ time: 2000, values: { a: 2, c: .5 }})
+.addKeyframe({ time: 4000, values: { a: 1, b: 0 }})
+.start();
 
 export enum ThreeViewerEvent {
     beforerender = "beforerender",

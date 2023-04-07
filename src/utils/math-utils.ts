@@ -1,3 +1,6 @@
+/* Author: Luca Viggiani <lviggiani@gmail.com>
+   Credits: https://github.com/lviggiani/dragonfly-threeviewer/
+*/
 export function rad2Deg(rad:number):number {
     return rad / Math.PI * 180;
 }

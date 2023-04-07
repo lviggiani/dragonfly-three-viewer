@@ -51,19 +51,25 @@ addEventListener("load", () => {
         });
 
         const colorInput = document.querySelector("#color") as HTMLInputElement;
-        colorInput.value = `#${body.material.color.getHexString()}`;
-
-        colorInput.addEventListener("input", ()=>{
-            body.material.color = new THREE.Color(colorInput.value);
-            viewer.requestRender();
-        });
-
         const metalInput = document.querySelector("#metallic") as HTMLInputElement;
-        metalInput.addEventListener("change", () =>{
-            body.material.metalness = metalInput.checked ? 1 : 0;
-            body.material.roughness = metalInput.checked ? .4 : .1;
-            viewer.requestRender();
-        });
+
+        if (body){
+            colorInput.value = `#${body.material.color.getHexString()}`;
+    
+            colorInput.addEventListener("input", ()=>{
+                body.material.color = new THREE.Color(colorInput.value);
+                viewer.requestRender();
+            });
+    
+            metalInput.addEventListener("change", () =>{
+                body.material.metalness = metalInput.checked ? 1 : 0;
+                body.material.roughness = metalInput.checked ? .4 : .1;
+                viewer.requestRender();
+            });
+        } else {
+            colorInput.style.display = "none";
+            metalInput.style.display = "none";
+        }
 
         viewDiv.value = viewer.view.toString();
         viewDiv.addEventListener("change", () => viewer.view = Number(viewDiv.value));
