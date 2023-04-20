@@ -290,8 +290,8 @@ export class ThreeViewer extends HTMLElement {
             this.passes.find(pass => pass instanceof SSRPass)!.enabled = true;
 
         const gl = this.renderer.getContext();
-        gl.flush();
-        gl.finish();
+        //gl.flush();
+        //gl.finish();
 
         let renderTime = performance.now();
 
@@ -305,7 +305,7 @@ export class ThreeViewer extends HTMLElement {
         renderTime = performance.now() - renderTime;
         this.dispatchEvent(new CustomEvent(ThreeViewerEvent.afterrender, { detail: { renderTime }}));
         
-        if (this.interactive && this.ssr && renderTime > 20)
+        if (this.interactive && this.ssr)
             this.passes.find(pass => pass instanceof SSRPass)!.enabled = false;
 
         this.renderRequested = false;
