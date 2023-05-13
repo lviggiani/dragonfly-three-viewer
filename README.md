@@ -1,5 +1,5 @@
 # Introduction 
-This repo contains the source files both for radici car viewer app and for generic 3D web viewer besed on threejs
+This repo contains the source files for 3D web viewer custom element besed on Threejs and embeddable as custom tag `<df-three-viewer>`
 # Getting Started
 After cloning the repo, install `deno` (https://deno.land/manual@v1.32.0/getting_started/installation)
 
