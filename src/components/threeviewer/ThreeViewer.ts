@@ -450,11 +450,11 @@ export class ThreeViewer extends HTMLElement {
 
     get exposure():number{
         const v = this.getAttribute("exposure");
-        return !v ? 1 : Number(v);
+        return !v ? 1 : Math.max(0.25, Number(v));
     }
 
     set exposure(value:number){
-        value = Math.max(0, value);
+        value = Math.max(0.25, value);
         this.setAttribute("exposure", value.toString());
     }
 
