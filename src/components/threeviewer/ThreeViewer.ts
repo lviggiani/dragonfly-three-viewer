@@ -160,10 +160,21 @@ export class ThreeViewer extends HTMLElement {
     connectedCallback(){
         if (!this.isConnected) return;
         this.resizeObserver.observe(this);
-
-        this.bkString = getComputedStyle(this).getPropertyValue("background-color");
-        const bk = new THREE.Color(this.bkString);
         
+        this.colorCorrection();
+    }
+
+    private colorCorrection(){
+        this.bkString = getComputedStyle(this).getPropertyValue("background-color");
+        const bk = new THREE.Color(this.bkString)
+        .convertSRGBToLinear()
+        .multiplyScalar(1 / Math.max(this.exposure, 0.0001));
+
+        const t = 1 - (1 - constants.BLOOM.threshold) / Math.pow(1 / this.exposure, 5);
+
+        (this.passes.find(pass => pass instanceof UnrealBloomPass) as UnrealBloomPass)
+            .threshold = this.exposure < 1 ? t : constants.BLOOM.threshold;
+                
         this.renderer.setClearColor(bk);
     }
 
@@ -188,10 +199,7 @@ export class ThreeViewer extends HTMLElement {
                 if (getComputedStyle(this).getPropertyValue("background-color") == this.bkString)
                     return;
 
-                this.bkString = getComputedStyle(this).getPropertyValue("background-color");
-                const bk = new THREE.Color(this.bkString);
-                
-                this.renderer.setClearColor(bk);
+                this.colorCorrection();
                 this.requestRender();
 
                 break;
@@ -210,7 +218,8 @@ export class ThreeViewer extends HTMLElement {
             }
 
             case "exposure": {
-                this.renderer.toneMappingExposure = this.exposure;
+                this.renderer.toneMappingExposure = this.exposure;              
+                this.colorCorrection();
                 this.requestRender();
                 break;
             }
